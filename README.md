@@ -577,3 +577,50 @@ Detailed comparisons are available in:
 ai-version/COMPARISON.md
 ai-rematch/COMPARISON.md
 ```
+
+---
+
+# Stretch — Scheduled Monday Report
+
+A second Inngest function generates a report automatically every Monday at
+08:00 using this cron expression:
+
+```text
+0 8 * * 1
+```
+
+The implementation uses Inngest's native `TriggerCron`, so a separate system
+cron or Celery Beat process is not required.
+
+The scheduled workflow uses durable steps:
+
+```text
+cron trigger
+    ↓
+create pending report
+    ↓
+mark processing
+    ↓
+query SQLite
+    ↓
+render and store PDF
+    ↓
+mark report done
+```
+
+The schedule currently uses UTC. Keeping the schedule and report timestamps in
+UTC avoids daylight-saving-time ambiguity.
+
+## What if the application server is down at 08:00?
+
+The schedule itself is managed by Inngest rather than by an in-process Python
+timer. In a deployed setup, Inngest can trigger the scheduled function
+independently of the API request flow.
+
+However, Inngest still needs the application's function-serving endpoint to be
+reachable in order to execute the function. If the application is unavailable,
+the run cannot complete at that moment and must rely on the workflow platform's
+retry/recovery behavior after the application becomes reachable again.
+
+For local development, both the FastAPI application and Inngest Dev Server must
+be running.
