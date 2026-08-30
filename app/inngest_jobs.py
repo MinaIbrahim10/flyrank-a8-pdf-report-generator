@@ -23,8 +23,8 @@ inngest_client = inngest.Inngest(
         event="report/generate",
     ),
 )
-async def generate_pdf_report(
-    ctx: inngest.Context,
+def generate_pdf_report(
+    ctx: inngest.ContextSync,
 ):
     report_id = str(
         ctx.event.data["report_id"]
@@ -38,26 +38,26 @@ async def generate_pdf_report(
     )
 
     try:
-        await ctx.step.run(
+        ctx.step.run(
             "mark-started",
             mark_started,
             report_id,
         )
 
-        report_data = await ctx.step.run(
+        report_data = ctx.step.run(
             "query-report-data",
             load_report_data,
             days,
         )
 
-        artifact = await ctx.step.run(
+        artifact = ctx.step.run(
             "render-and-store-pdf",
             render_background_pdf,
             report_id,
             report_data,
         )
 
-        result = await ctx.step.run(
+        result = ctx.step.run(
             "finalize-report",
             mark_done,
             report_id,
