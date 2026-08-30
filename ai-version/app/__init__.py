@@ -1,0 +1,2 @@
+"""Shop PDF report generator."""
+

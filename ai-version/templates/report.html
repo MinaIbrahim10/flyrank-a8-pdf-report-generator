@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Shop Orders Report</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; color: #182230; font: 10px/1.45 Arial, sans-serif; }
+    h1 { margin: 0 0 4px; color: #12263f; font-size: 25px; }
+    h2 { margin: 24px 0 9px; color: #12263f; font-size: 15px; }
+    .subtitle { color: #667085; font-size: 11px; }
+    .cards { display: flex; gap: 12px; margin: 20px 0; }
+    .card { width: 50%; padding: 14px; border: 1px solid #e4e7ec; border-radius: 7px; background: #f8fafc; }
+    .card-label { color: #667085; font-size: 10px; text-transform: uppercase; }
+    .card-value { margin-top: 3px; color: #175cd3; font-size: 22px; font-weight: bold; }
+    table { width: 100%; border-collapse: collapse; }
+    thead { display: table-header-group; }
+    tr { break-inside: avoid; page-break-inside: avoid; }
+    th { padding: 7px 8px; background: #1d4e89; color: white; text-align: left; font-weight: 600; }
+    td { padding: 6px 8px; border-bottom: 1px solid #e4e7ec; }
+    tbody tr:nth-child(even) { background: #f8fafc; }
+    .number { text-align: right; font-variant-numeric: tabular-nums; }
+    .daily { display: flex; gap: 6px; }
+    .day { flex: 1; padding: 7px 3px; border: 1px solid #e4e7ec; border-radius: 4px; text-align: center; }
+    .day strong { display: block; color: #175cd3; font-size: 14px; }
+    @page { size: A4; }
+  </style>
+</head>
+<body>
+  <h1>Shop Orders Report</h1>
+  <div class="subtitle">Generated {{ generated_at.strftime('%B %d, %Y at %H:%M %Z') }}</div>
+
+  <div class="cards">
+    <div class="card"><div class="card-label">Total orders</div><div class="card-value">{{ total_orders }}</div></div>
+    <div class="card"><div class="card-label">Total revenue</div><div class="card-value">${{ '%.2f'|format(total_revenue) }}</div></div>
+  </div>
+
+  <h2>Last 7 days</h2>
+  <div class="daily">
+    {% for item in orders_per_day %}<div class="day"><span>{{ item.day[5:] }}</span><strong>{{ item.order_count }}</strong></div>{% endfor %}
+  </div>
+
+  <h2>Top 5 products by revenue</h2>
+  <table>
+    <thead><tr><th>Product</th><th class="number">Orders</th><th class="number">Revenue</th></tr></thead>
+    <tbody>{% for item in top_products %}<tr><td>{{ item.product }}</td><td class="number">{{ item.order_count }}</td><td class="number">${{ '%.2f'|format(item.revenue) }}</td></tr>{% endfor %}</tbody>
+  </table>
+
+  <h2>All orders</h2>
+  <table>
+    <thead><tr><th>ID</th><th>Customer</th><th>Product</th><th>Created</th><th class="number">Amount</th></tr></thead>
+    <tbody>{% for order in orders %}<tr><td>{{ order.id }}</td><td>{{ order.customer }}</td><td>{{ order.product }}</td><td>{{ order.created_at[:16].replace('T', ' ') }}</td><td class="number">${{ '%.2f'|format(order.amount) }}</td></tr>{% endfor %}</tbody>
+  </table>
+</body>
+</html>
+

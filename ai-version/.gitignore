@@ -1,0 +1,7 @@
+shop.db
+reports/
+__pycache__/
+.pytest_cache/
+.venv/
+*.py[cod]
+
