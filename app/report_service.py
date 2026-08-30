@@ -1,4 +1,5 @@
 import hashlib
+import sqlite3
 import time
 import uuid
 from datetime import datetime, timezone
@@ -23,17 +24,110 @@ def _sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _daily_key(
+    days: int,
+    now: datetime,
+) -> str:
+    return (
+        f"sales:"
+        f"{now.date().isoformat()}:"
+        f"days={days}"
+    )
+
+
+def _record_to_metadata(
+    row,
+) -> dict[str, Any]:
+    path = (
+        REPORTS_DIR.parent
+        / row["path"]
+    )
+
+    metadata: dict[str, Any] = {
+        "id": row["id"],
+        "status": (
+            "done"
+            if path.exists()
+            else "missing"
+        ),
+        "created_at": row["created_at"],
+        "filename": path.name,
+        "file": (
+            f"/reports/"
+            f"{row['id']}"
+            f"/file"
+        ),
+    }
+
+    if path.exists():
+        metadata.update(
+            {
+                "file_size_bytes":
+                    path.stat().st_size,
+                "sha256":
+                    _sha256_file(path),
+            }
+        )
+
+    return metadata
+
+
+def find_existing_report(
+    idempotency_key: str,
+) -> dict[str, Any] | None:
+    with get_connection() as connection:
+        row = connection.execute(
+            """
+            SELECT
+                id,
+                path,
+                created_at,
+                idempotency_key
+            FROM reports
+            WHERE idempotency_key = ?
+            LIMIT 1
+            """,
+            (idempotency_key,),
+        ).fetchone()
+
+    if row is None:
+        return None
+
+    return _record_to_metadata(row)
+
+
 def generate_report(
     days: int = 30,
-) -> dict[str, Any]:
+    force: bool = False,
+) -> tuple[dict[str, Any], bool]:
     initialize_database()
-
-    report_id = str(
-        uuid.uuid4()
-    )
 
     now = datetime.now(
         timezone.utc
+    )
+
+    idempotency_key = (
+        None
+        if force
+        else _daily_key(
+            days,
+            now,
+        )
+    )
+
+    if idempotency_key:
+        existing = find_existing_report(
+            idempotency_key
+        )
+
+        if existing is not None:
+            existing["reused"] = True
+            existing["days"] = days
+
+            return existing, False
+
+    report_id = str(
+        uuid.uuid4()
     )
 
     filename = (
@@ -83,41 +177,69 @@ def generate_report(
         )
     )
 
-    with get_connection() as connection:
-        connection.execute(
-            """
-            INSERT INTO reports (
-                id,
-                path,
-                created_at
+    try:
+        with get_connection() as connection:
+            connection.execute(
+                """
+                INSERT INTO reports (
+                    id,
+                    path,
+                    created_at,
+                    idempotency_key
+                )
+                VALUES (?, ?, ?, ?)
+                """,
+                (
+                    report_id,
+                    relative_path,
+                    created_at,
+                    idempotency_key,
+                ),
             )
-            VALUES (?, ?, ?)
-            """,
-            (
-                report_id,
-                relative_path,
-                created_at,
+
+            connection.commit()
+
+    except sqlite3.IntegrityError:
+        if output_path.exists():
+            output_path.unlink()
+
+        if idempotency_key:
+            existing = find_existing_report(
+                idempotency_key
+            )
+
+            if existing is not None:
+                existing["reused"] = True
+                existing["days"] = days
+
+                return existing, False
+
+        raise
+
+    return (
+        {
+            "id": report_id,
+            "status": "done",
+            "created_at": created_at,
+            "days": days,
+            "filename": filename,
+            "path": relative_path,
+            "file": (
+                f"/reports/"
+                f"{report_id}"
+                f"/file"
             ),
-        )
-
-        connection.commit()
-
-    return {
-        "id": report_id,
-        "status": "done",
-        "created_at": created_at,
-        "days": days,
-        "filename": filename,
-        "path": relative_path,
-        "file": (
-            f"/reports/"
-            f"{report_id}"
-            f"/file"
-        ),
-        "generation_ms": duration_ms,
-        "file_size_bytes": file_size,
-        "sha256": checksum,
-    }
+            "generation_ms":
+                duration_ms,
+            "file_size_bytes":
+                file_size,
+            "sha256":
+                checksum,
+            "reused":
+                False,
+        },
+        True,
+    )
 
 
 def get_report_record(
@@ -129,7 +251,8 @@ def get_report_record(
             SELECT
                 id,
                 path,
-                created_at
+                created_at,
+                idempotency_key
             FROM reports
             WHERE id = ?
             """,
@@ -139,44 +262,7 @@ def get_report_record(
     if row is None:
         return None
 
-    path = (
-        REPORTS_DIR.parent
-        / row["path"]
-    )
-
-    filename = path.name
-
-    metadata: dict[str, Any] = {
-        "id": row["id"],
-        "status": (
-            "done"
-            if path.exists()
-            else "missing"
-        ),
-        "created_at": (
-            row["created_at"]
-        ),
-        "filename": filename,
-        "file": (
-            f"/reports/"
-            f"{row['id']}"
-            f"/file"
-        ),
-    }
-
-    if path.exists():
-        metadata.update(
-            {
-                "file_size_bytes":
-                    path.stat().st_size,
-                "sha256":
-                    _sha256_file(
-                        path
-                    ),
-            }
-        )
-
-    return metadata
+    return _record_to_metadata(row)
 
 
 def get_report_path(

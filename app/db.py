@@ -5,8 +5,13 @@ DB_PATH = Path(__file__).resolve().parent.parent / "report.db"
 
 
 def get_connection() -> sqlite3.Connection:
-    connection = sqlite3.connect(DB_PATH)
+    connection = sqlite3.connect(
+        DB_PATH,
+        timeout=30,
+    )
+
     connection.row_factory = sqlite3.Row
+
     return connection
 
 
@@ -29,8 +34,33 @@ def initialize_database() -> None:
             CREATE TABLE IF NOT EXISTS reports (
                 id TEXT PRIMARY KEY,
                 path TEXT NOT NULL,
-                created_at TEXT NOT NULL
+                created_at TEXT NOT NULL,
+                idempotency_key TEXT
             )
+            """
+        )
+
+        columns = {
+            row["name"]
+            for row in connection.execute(
+                "PRAGMA table_info(reports)"
+            ).fetchall()
+        }
+
+        if "idempotency_key" not in columns:
+            connection.execute(
+                """
+                ALTER TABLE reports
+                ADD COLUMN idempotency_key TEXT
+                """
+            )
+
+        connection.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS
+            idx_reports_idempotency_key
+            ON reports(idempotency_key)
+            WHERE idempotency_key IS NOT NULL
             """
         )
 

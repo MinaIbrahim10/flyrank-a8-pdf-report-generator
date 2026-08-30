@@ -2,6 +2,7 @@ from fastapi import (
     FastAPI,
     HTTPException,
     Query,
+    Response,
     status,
 )
 from fastapi.responses import (
@@ -40,11 +41,9 @@ def health():
     }
 
 
-@app.post(
-    "/reports",
-    status_code=status.HTTP_201_CREATED,
-)
+@app.post("/reports")
 def create_report(
+    response: Response,
     days: int = Query(
         default=30,
         ge=1,
@@ -54,11 +53,28 @@ def create_report(
             "in the report."
         ),
     ),
+    force: bool = Query(
+        default=False,
+        description=(
+            "Generate a new report even "
+            "if today's report exists."
+        ),
+    ),
 ):
     try:
-        return generate_report(
-            days=days
+        report, created = generate_report(
+            days=days,
+            force=force,
         )
+
+        response.status_code = (
+            status.HTTP_201_CREATED
+            if created
+            else status.HTTP_200_OK
+        )
+
+        return report
+
     except Exception as error:
         raise HTTPException(
             status_code=500,
@@ -106,8 +122,6 @@ def download_report(
 
     return FileResponse(
         path=path,
-        media_type=(
-            "application/pdf"
-        ),
+        media_type="application/pdf",
         filename=path.name,
     )
