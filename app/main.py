@@ -23,6 +23,7 @@ from app.report_service import (
     get_report_path,
     get_report_record,
     list_reports,
+    generate_report_csv,
 )
 
 
@@ -200,6 +201,30 @@ def read_report(
         )
 
     return report
+
+
+
+@app.get(
+    "/reports/{report_id}/csv"
+)
+def download_report_csv(
+    report_id: str,
+):
+    path = generate_report_csv(
+        report_id
+    )
+
+    if path is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Report not found",
+        )
+
+    return FileResponse(
+        path=path,
+        media_type="text/csv",
+        filename=path.name,
+    )
 
 
 @app.get(

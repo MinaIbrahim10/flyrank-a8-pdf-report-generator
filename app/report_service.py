@@ -432,3 +432,66 @@ def list_reports(
         )
 
     return reports
+
+
+def generate_report_csv(
+    report_id: str,
+) -> Path | None:
+    import csv
+
+    report = get_report_record(
+        report_id
+    )
+
+    if report is None:
+        return None
+
+    days = int(
+        report.get("days") or 30
+    )
+
+    data = get_report_data(
+        days=days
+    )
+
+    csv_path = (
+        REPORTS_DIR
+        / (
+            Path(
+                report["filename"]
+            ).stem
+            + ".csv"
+        )
+    )
+
+    with csv_path.open(
+        "w",
+        newline="",
+        encoding="utf-8",
+    ) as handle:
+        writer = csv.writer(
+            handle
+        )
+
+        writer.writerow(
+            [
+                "id",
+                "customer",
+                "product",
+                "amount",
+                "created_at",
+            ]
+        )
+
+        for order in data["orders"]:
+            writer.writerow(
+                [
+                    order["id"],
+                    order["customer"],
+                    order["product"],
+                    order["amount"],
+                    order["created_at"],
+                ]
+            )
+
+    return csv_path

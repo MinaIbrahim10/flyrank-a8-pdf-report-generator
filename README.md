@@ -716,3 +716,37 @@ The script:
 4. generates the full PDF
 5. measures PDF generation time and artifact size
 6. restores the original 200-row dataset
+
+---
+
+# Extra — CSV Companion Export
+
+Every completed report can also be exported as CSV.
+
+Endpoint:
+
+```text
+GET /reports/{id}/csv
+```
+
+The CSV contains:
+
+```text
+id
+customer
+product
+amount
+created_at
+```
+
+This provides a machine-readable companion artifact alongside the human-readable PDF.
+
+Example:
+
+```bash
+curl \
+  "http://127.0.0.1:8001/reports/REPORT_ID/csv" \
+  --output report.csv
+```
+
+The CSV is generated from the same report dataset and stored under the ignored `reports/` runtime directory.
