@@ -1,3 +1,6 @@
+import inngest
+import inngest.fast_api
+
 from fastapi import (
     FastAPI,
     HTTPException,
@@ -10,6 +13,11 @@ from fastapi.responses import (
 )
 
 from app.db import initialize_database
+from app.background_reports import create_pending_report
+from app.inngest_jobs import (
+    functions as inngest_functions,
+    inngest_client,
+)
 from app.report_service import (
     generate_report,
     get_report_path,
@@ -85,6 +93,54 @@ def create_report(
         ) from error
 
 
+
+@app.post(
+    "/reports/background",
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def create_background_report(
+    days: int = Query(
+        default=30,
+        ge=1,
+        le=365,
+    ),
+):
+    report = create_pending_report(
+        days=days
+    )
+
+    try:
+        event_ids = await inngest_client.send(
+            inngest.Event(
+                name="report/generate",
+                data={
+                    "report_id": report["id"],
+                    "days": days,
+                },
+            )
+        )
+
+    except Exception as error:
+        from app.background_reports import mark_failed
+
+        mark_failed(
+            report["id"],
+            f"Failed to enqueue job: {error}",
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Failed to enqueue "
+                "background report"
+            ),
+        ) from error
+
+    report["event_ids"] = event_ids
+
+    return report
+
+
 @app.get("/reports/{report_id}")
 def read_report(
     report_id: str,
@@ -125,3 +181,10 @@ def download_report(
         media_type="application/pdf",
         filename=path.name,
     )
+
+
+inngest.fast_api.serve(
+    app,
+    inngest_client,
+    inngest_functions,
+)

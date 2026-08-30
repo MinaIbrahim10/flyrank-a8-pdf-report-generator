@@ -47,13 +47,38 @@ def initialize_database() -> None:
             ).fetchall()
         }
 
-        if "idempotency_key" not in columns:
-            connection.execute(
-                """
-                ALTER TABLE reports
-                ADD COLUMN idempotency_key TEXT
-                """
-            )
+        migrations = {
+            "idempotency_key":
+                "ALTER TABLE reports ADD COLUMN idempotency_key TEXT",
+            "status":
+                "ALTER TABLE reports ADD COLUMN status TEXT DEFAULT 'done'",
+            "error":
+                "ALTER TABLE reports ADD COLUMN error TEXT",
+            "days":
+                "ALTER TABLE reports ADD COLUMN days INTEGER DEFAULT 30",
+            "generation_ms":
+                "ALTER TABLE reports ADD COLUMN generation_ms REAL",
+            "file_size_bytes":
+                "ALTER TABLE reports ADD COLUMN file_size_bytes INTEGER",
+            "sha256":
+                "ALTER TABLE reports ADD COLUMN sha256 TEXT",
+            "started_at":
+                "ALTER TABLE reports ADD COLUMN started_at TEXT",
+            "finished_at":
+                "ALTER TABLE reports ADD COLUMN finished_at TEXT",
+        }
+
+        for column, sql in migrations.items():
+            if column not in columns:
+                connection.execute(sql)
+
+        connection.execute(
+            """
+            UPDATE reports
+            SET status = 'done'
+            WHERE status IS NULL
+            """
+        )
 
         connection.execute(
             """

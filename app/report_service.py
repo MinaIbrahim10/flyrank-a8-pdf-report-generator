@@ -252,7 +252,15 @@ def get_report_record(
                 id,
                 path,
                 created_at,
-                idempotency_key
+                idempotency_key,
+                status,
+                error,
+                days,
+                generation_ms,
+                file_size_bytes,
+                sha256,
+                started_at,
+                finished_at
             FROM reports
             WHERE id = ?
             """,
@@ -262,8 +270,47 @@ def get_report_record(
     if row is None:
         return None
 
-    return _record_to_metadata(row)
+    path = (
+        REPORTS_DIR.parent
+        / row["path"]
+    )
 
+    metadata: dict[str, Any] = {
+        "id": row["id"],
+        "status": row["status"] or "done",
+        "created_at": row["created_at"],
+        "days": row["days"],
+        "filename": path.name,
+        "file": (
+            f"/reports/"
+            f"{row['id']}"
+            f"/file"
+        ),
+        "started_at": row["started_at"],
+        "finished_at": row["finished_at"],
+        "generation_ms": row["generation_ms"],
+        "file_size_bytes": row["file_size_bytes"],
+        "sha256": row["sha256"],
+        "error": row["error"],
+    }
+
+    if (
+        path.exists()
+        and metadata["file_size_bytes"] is None
+    ):
+        metadata["file_size_bytes"] = (
+            path.stat().st_size
+        )
+
+    if (
+        path.exists()
+        and metadata["sha256"] is None
+    ):
+        metadata["sha256"] = (
+            _sha256_file(path)
+        )
+
+    return metadata
 
 def get_report_path(
     report_id: str,
