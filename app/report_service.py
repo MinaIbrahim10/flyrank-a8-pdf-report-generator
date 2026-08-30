@@ -348,3 +348,87 @@ def get_report_path(
         return None
 
     return path
+
+
+def list_reports(
+    limit: int = 20,
+    status_filter: str | None = None,
+) -> list[dict[str, Any]]:
+    query = """
+        SELECT
+            id,
+            path,
+            created_at,
+            status,
+            error,
+            days,
+            generation_ms,
+            file_size_bytes,
+            sha256,
+            started_at,
+            finished_at
+        FROM reports
+    """
+
+    params: list[Any] = []
+
+    if status_filter:
+        query += """
+        WHERE status = ?
+        """
+
+        params.append(
+            status_filter
+        )
+
+    query += """
+        ORDER BY created_at DESC
+        LIMIT ?
+    """
+
+    params.append(
+        limit
+    )
+
+    with get_connection() as connection:
+        rows = connection.execute(
+            query,
+            params,
+        ).fetchall()
+
+    reports: list[dict[str, Any]] = []
+
+    for row in rows:
+        path = (
+            REPORTS_DIR.parent
+            / row["path"]
+        )
+
+        reports.append(
+            {
+                "id": row["id"],
+                "status": row["status"] or "done",
+                "created_at": row["created_at"],
+                "days": row["days"],
+                "filename": path.name,
+                "file": (
+                    f"/reports/"
+                    f"{row['id']}"
+                    f"/file"
+                ),
+                "generation_ms":
+                    row["generation_ms"],
+                "file_size_bytes":
+                    row["file_size_bytes"],
+                "sha256":
+                    row["sha256"],
+                "started_at":
+                    row["started_at"],
+                "finished_at":
+                    row["finished_at"],
+                "error":
+                    row["error"],
+            }
+        )
+
+    return reports

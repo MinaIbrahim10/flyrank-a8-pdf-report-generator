@@ -22,6 +22,7 @@ from app.report_service import (
     generate_report,
     get_report_path,
     get_report_record,
+    list_reports,
 )
 
 
@@ -139,6 +140,49 @@ async def create_background_report(
     report["event_ids"] = event_ids
 
     return report
+
+
+
+@app.get("/reports")
+def read_reports(
+    limit: int = Query(
+        default=20,
+        ge=1,
+        le=100,
+    ),
+    status_filter: str | None = Query(
+        default=None,
+        alias="status",
+    ),
+):
+    allowed_statuses = {
+        "pending",
+        "processing",
+        "done",
+        "failed",
+    }
+
+    if (
+        status_filter is not None
+        and status_filter not in allowed_statuses
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Invalid status filter. "
+                "Use pending, processing, done, or failed."
+            ),
+        )
+
+    reports = list_reports(
+        limit=limit,
+        status_filter=status_filter,
+    )
+
+    return {
+        "count": len(reports),
+        "reports": reports,
+    }
 
 
 @app.get("/reports/{report_id}")
