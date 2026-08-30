@@ -1,8 +1,9 @@
 import json
+import os
 import urllib.request
 
 
-BASE = "http://127.0.0.1:8001"
+BASE = os.getenv("BASE_URL", "http://127.0.0.1:8000")
 
 
 def post(url: str):

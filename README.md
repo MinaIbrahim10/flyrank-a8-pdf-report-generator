@@ -1,11 +1,477 @@
 # FlyRank A8 — PDF Report Generator
 
-A backend reporting pipeline built with FastAPI, SQLite, SQL aggregation,
-HTML templates, Playwright, and Chromium PDF rendering.
+A production-style backend reporting pipeline built for the FlyRank Backend Track Week 4 Assignment A8.
 
-The project will implement:
+It turns SQLite order data into a polished multi-page PDF and serves the generated artifact through an API link.
 
-`query → render → store → serve`
+## Pipeline
 
-Additional stages will add idempotency, background jobs, scheduling,
-email delivery, testing, and reporting extras.
+```text
+SQLite
+  ↓
+SQL aggregation
+  ↓
+Report data object
+  ↓
+Jinja2 HTML template
+  ↓
+Playwright / Chromium
+  ↓
+PDF file on disk
+  ↓
+SQLite report metadata
+  ↓
+FastAPI download link
+```
+
+The project follows the artifact rule:
+
+> Generate the file, store it, and return a link instead of passing PDF bytes through JSON.
+
+---
+
+## Stack
+
+- Python
+- FastAPI
+- SQLite
+- Jinja2
+- Playwright
+- Chromium
+- SHA-256 artifact verification
+
+---
+
+## Dataset
+
+The example dataset represents a small shop.
+
+The `orders` table contains:
+
+- `id`
+- `customer`
+- `product`
+- `amount`
+- `created_at`
+
+The seed script generates exactly **200 orders** across six products.
+
+It first removes existing orders, so running it repeatedly remains idempotent:
+
+```bash
+python scripts/seed.py
+python scripts/seed.py
+```
+
+Both runs leave exactly:
+
+```text
+200 orders
+```
+
+`report.db` is generated locally and intentionally excluded from Git.
+
+---
+
+## Setup
+
+Create and activate a virtual environment:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+```
+
+Install dependencies:
+
+```bash
+pip install -r requirements.txt
+playwright install chromium
+```
+
+Seed the database:
+
+```bash
+python scripts/seed.py
+```
+
+Start the API:
+
+```bash
+uvicorn app.main:app --reload
+```
+
+The default API URL is:
+
+```text
+http://127.0.0.1:8000
+```
+
+If that port is already occupied, another port can be used:
+
+```bash
+uvicorn app.main:app --reload --port 8001
+```
+
+---
+
+## Health Check
+
+```bash
+curl http://127.0.0.1:8000/health
+```
+
+Example:
+
+```json
+{
+  "status": "ok",
+  "service": "pdf-report-generator"
+}
+```
+
+---
+
+# SQL Aggregations
+
+The report is built from four core aggregation requirements.
+
+## 1. Total order count
+
+```sql
+SELECT COUNT(*) AS total_orders
+FROM orders
+WHERE created_at >= ?;
+```
+
+## 2. Total revenue
+
+```sql
+SELECT
+    COALESCE(SUM(amount), 0) AS total_revenue,
+    COALESCE(AVG(amount), 0) AS average_order_value,
+    COUNT(DISTINCT customer) AS unique_customers
+FROM orders
+WHERE created_at >= ?;
+```
+
+## 3. Top five products by revenue
+
+```sql
+SELECT
+    product,
+    COUNT(*) AS order_count,
+    ROUND(SUM(amount), 2) AS revenue,
+    ROUND(AVG(amount), 2) AS average_order_value
+FROM orders
+WHERE created_at >= ?
+GROUP BY product
+ORDER BY revenue DESC
+LIMIT 5;
+```
+
+## 4. Orders per day for the last seven days
+
+```sql
+SELECT
+    DATE(created_at) AS day,
+    COUNT(*) AS orders,
+    ROUND(SUM(amount), 2) AS revenue
+FROM orders
+WHERE created_at >= ?
+GROUP BY DATE(created_at)
+ORDER BY day ASC;
+```
+
+Additional metrics include:
+
+- average order value
+- unique customer count
+- top product by units
+- complete order listing
+
+---
+
+# PDF Generation
+
+The report HTML contains:
+
+- branded report header
+- total orders KPI
+- total revenue KPI
+- average order value KPI
+- unique customers KPI
+- top five products table
+- last seven days table
+- complete orders table
+- repeated table headers
+- safe page breaks
+- page numbers
+
+The PDF is rendered by headless Chromium using Playwright.
+
+Important print behavior includes:
+
+```css
+thead {
+    display: table-header-group;
+}
+
+tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+}
+```
+
+The generated sample report is seven pages long.
+
+## PDF Preview
+
+![Generated PDF page 1](docs/report-page-1.png)
+
+---
+
+# API
+
+## Generate a report
+
+```http
+POST /reports
+```
+
+Optional query parameter:
+
+```text
+days=30
+```
+
+Example:
+
+```bash
+curl -i -X POST \
+  "http://127.0.0.1:8000/reports?days=30"
+```
+
+A newly generated report returns:
+
+```text
+HTTP 201 Created
+```
+
+Example response:
+
+```json
+{
+  "id": "53aea728-6ffa-4830-9197-4fc6b117fe6a",
+  "status": "done",
+  "days": 30,
+  "filename": "sales-report-2026-08-30-53aea728.pdf",
+  "file": "/reports/53aea728-6ffa-4830-9197-4fc6b117fe6a/file",
+  "file_size_bytes": 62311,
+  "sha256": "ebcf6b46861127b9eab19c7a91bf9b1308720e848eeb339b8020e72b27c11e90"
+}
+```
+
+The synchronous request intentionally takes visible time because SQL aggregation, HTML rendering, Chromium startup, PDF rendering, and disk storage happen inside the request.
+
+### When should this leave the request?
+
+In production I would move PDF generation out of the HTTP request when reports become expensive, datasets become larger, multiple users generate reports concurrently, or generation time becomes long enough to risk request timeouts. A background worker would allow the API to return immediately and expose report status separately.
+
+---
+
+## Read report metadata
+
+```http
+GET /reports/{id}
+```
+
+Example:
+
+```bash
+curl \
+  "http://127.0.0.1:8000/reports/REPORT_ID"
+```
+
+---
+
+## Download the PDF
+
+```http
+GET /reports/{id}/file
+```
+
+Example:
+
+```bash
+curl \
+  "http://127.0.0.1:8000/reports/REPORT_ID/file" \
+  --output report.pdf
+```
+
+The API serves the stored artifact by link rather than embedding the PDF in the API response.
+
+---
+
+## Unknown reports
+
+An unknown report ID returns:
+
+```text
+HTTP 404 Not Found
+```
+
+---
+
+# Daily Idempotency
+
+Normal report generation is protected against duplicate requests.
+
+For the same day and report period:
+
+```text
+first POST  -> 201 Created
+second POST -> 200 OK
+```
+
+Both requests return the same report ID and file link.
+
+The protection prevents accidental double-clicks, retries, or repeated client requests from generating duplicate artifacts and duplicate database records.
+
+Without idempotency in a real system, retries could waste compute, create duplicate files, send duplicate reports, consume storage, or trigger duplicate downstream operations.
+
+The SQLite database also uses a unique idempotency key so the protection exists at the persistence layer rather than relying only on an application-level lookup.
+
+---
+
+## Force regeneration
+
+Idempotency can be bypassed intentionally:
+
+```bash
+curl -X POST \
+  "http://127.0.0.1:8000/reports?days=30&force=true"
+```
+
+This generates a new report and returns:
+
+```text
+HTTP 201 Created
+```
+
+---
+
+# Verification
+
+Stage 4 API verification:
+
+```bash
+python scripts/test_stage4.py
+```
+
+Stage 5 idempotency verification:
+
+```bash
+python scripts/test_stage5.py
+```
+
+When the API uses a different port:
+
+```bash
+BASE_URL=http://127.0.0.1:8001 \
+python scripts/test_stage5.py
+```
+
+Verified behavior includes:
+
+- health endpoint
+- PDF generation
+- HTTP 201 for new reports
+- report metadata retrieval
+- real PDF download
+- HTTP 404 for unknown reports
+- daily duplicate reuse
+- `force=true`
+- one idempotent database row
+- SHA-256 file checksum
+
+---
+
+# Generated Files
+
+Generated runtime artifacts are intentionally ignored:
+
+```text
+report.db
+reports/*
+```
+
+The repository contains only source code and documentation artifacts.
+
+---
+
+# Project Structure
+
+```text
+.
+├── app
+│   ├── __init__.py
+│   ├── db.py
+│   ├── main.py
+│   ├── pdf_renderer.py
+│   ├── report_data.py
+│   └── report_service.py
+├── docs
+│   └── report-page-1.png
+├── reports
+│   └── .gitkeep
+├── scripts
+│   ├── generate_test_pdf.py
+│   ├── seed.py
+│   ├── test_report_data.py
+│   ├── test_stage4.py
+│   └── test_stage5.py
+├── templates
+│   └── report.html
+├── .gitignore
+├── README.md
+└── requirements.txt
+```
+
+---
+
+# Current Features
+
+- deterministic 200-row seed
+- safe re-seeding
+- SQL aggregation
+- parameterized report period
+- professional HTML report template
+- multi-page A4 PDF
+- clean row page breaks
+- repeated table headers
+- PDF page numbers
+- nice report filenames
+- report metadata persisted in SQLite
+- downloadable artifact endpoint
+- file size metadata
+- SHA-256 verification
+- daily idempotency
+- forced regeneration
+- configurable test API URL
+- API verification scripts
+
+---
+
+# Next Extensions
+
+The stretch implementation will add:
+
+- asynchronous/background report generation
+- report status tracking
+- scheduled Monday reports
+- email delivery through Mailpit
+- report listing/control panel
+- benchmark testing
+- automated tests
+- AI rematch comparison
