@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+
+  <title>Sales Report</title>
+
+  <style>
+    @page {
+      size: A4;
+
+      margin:
+        18mm
+        14mm
+        18mm
+        14mm;
+
+      @bottom-center {
+        content:
+          "Decision Analytics · Sales Report";
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+
+      font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+      color: #172033;
+
+      background: #ffffff;
+
+      font-size: 12px;
+
+      line-height: 1.5;
+    }
+
+    .report-header {
+      display: flex;
+
+      justify-content:
+        space-between;
+
+      align-items:
+        flex-start;
+
+      padding:
+        18px 20px;
+
+      margin-bottom:
+        20px;
+
+      border-radius:
+        14px;
+
+      background:
+        linear-gradient(
+          135deg,
+          #111827,
+          #1f2937
+        );
+
+      color: white;
+    }
+
+    .brand {
+      font-size: 13px;
+
+      font-weight: 700;
+
+      letter-spacing:
+        0.08em;
+
+      text-transform:
+        uppercase;
+
+      opacity: 0.85;
+    }
+
+    .report-title {
+      margin:
+        8px
+        0
+        4px;
+
+      font-size: 28px;
+
+      line-height: 1.1;
+    }
+
+    .subtitle {
+      margin: 0;
+
+      font-size: 12px;
+
+      opacity: 0.75;
+    }
+
+    .header-meta {
+      text-align: right;
+
+      font-size: 11px;
+
+      line-height: 1.7;
+
+      opacity: 0.9;
+    }
+
+    .section {
+      margin-top: 22px;
+    }
+
+    .section-title {
+      margin:
+        0
+        0
+        10px;
+
+      font-size: 16px;
+
+      color: #111827;
+    }
+
+    .muted {
+      color: #6b7280;
+    }
+
+    .kpis {
+      display: grid;
+
+      grid-template-columns:
+        repeat(
+          4,
+          1fr
+        );
+
+      gap: 10px;
+
+      margin-bottom:
+        20px;
+    }
+
+    .kpi {
+      padding:
+        14px
+        12px;
+
+      border:
+        1px solid #e5e7eb;
+
+      border-radius:
+        12px;
+
+      background:
+        #f9fafb;
+    }
+
+    .kpi-label {
+      margin-bottom:
+        6px;
+
+      color:
+        #6b7280;
+
+      font-size:
+        10px;
+
+      font-weight:
+        700;
+
+      letter-spacing:
+        0.04em;
+
+      text-transform:
+        uppercase;
+    }
+
+    .kpi-value {
+      font-size: 20px;
+
+      font-weight: 800;
+
+      color: #111827;
+    }
+
+    .kpi-note {
+      margin-top:
+        3px;
+
+      font-size:
+        9px;
+
+      color:
+        #9ca3af;
+    }
+
+    .grid-2 {
+      display: grid;
+
+      grid-template-columns:
+        1fr
+        1fr;
+
+      gap: 14px;
+    }
+
+    .panel {
+      padding: 14px;
+
+      border:
+        1px solid #e5e7eb;
+
+      border-radius:
+        12px;
+    }
+
+    table {
+      width: 100%;
+
+      border-collapse:
+        collapse;
+
+      margin-top:
+        8px;
+    }
+
+    thead {
+      display:
+        table-header-group;
+    }
+
+    tr {
+      break-inside:
+        avoid;
+
+      page-break-inside:
+        avoid;
+    }
+
+    th {
+      padding:
+        8px
+        8px;
+
+      background:
+        #f3f4f6;
+
+      border-bottom:
+        1px solid #d1d5db;
+
+      color:
+        #374151;
+
+      font-size:
+        10px;
+
+      text-align:
+        left;
+
+      text-transform:
+        uppercase;
+
+      letter-spacing:
+        0.03em;
+    }
+
+    td {
+      padding:
+        7px
+        8px;
+
+      border-bottom:
+        1px solid #eceff3;
+
+      vertical-align:
+        top;
+    }
+
+    tbody tr:nth-child(even) {
+      background:
+        #fafafa;
+    }
+
+    .money {
+      text-align: right;
+
+      white-space:
+        nowrap;
+
+      font-variant-numeric:
+        tabular-nums;
+    }
+
+    .number {
+      text-align:
+        right;
+
+      font-variant-numeric:
+        tabular-nums;
+    }
+
+    .rank {
+      width: 28px;
+
+      font-weight: 700;
+
+      color: #6b7280;
+    }
+
+    .orders-table {
+      font-size: 10px;
+    }
+
+    .orders-table th,
+    .orders-table td {
+      padding:
+        6px
+        7px;
+    }
+
+    .page-break-before {
+      break-before:
+        page;
+
+      page-break-before:
+        always;
+    }
+
+    .footer-note {
+      margin-top:
+        20px;
+
+      padding-top:
+        10px;
+
+      border-top:
+        1px solid #e5e7eb;
+
+      color:
+        #9ca3af;
+
+      font-size:
+        9px;
+
+      text-align:
+        center;
+    }
+  </style>
+</head>
+
+<body>
+  <header class="report-header">
+    <div>
+      <div class="brand">
+        Decision Analytics
+      </div>
+
+      <h1 class="report-title">
+        Sales Performance Report
+      </h1>
+
+      <p class="subtitle">
+        Automated report generated from SQLite order data
+      </p>
+    </div>
+
+    <div class="header-meta">
+      <div>
+        Period:
+        {{ report.period_days }}
+        days
+      </div>
+
+      <div>
+        Generated:
+        {{ generated_display }}
+      </div>
+
+      <div>
+        Source:
+        report.db
+      </div>
+    </div>
+  </header>
+
+  <section>
+    <div class="kpis">
+      <div class="kpi">
+        <div class="kpi-label">
+          Total orders
+        </div>
+
+        <div class="kpi-value">
+          {{ report.summary.total_orders }}
+        </div>
+
+        <div class="kpi-note">
+          Orders in report period
+        </div>
+      </div>
+
+      <div class="kpi">
+        <div class="kpi-label">
+          Total revenue
+        </div>
+
+        <div class="kpi-value">
+          ${{ "%.2f"|format(report.summary.total_revenue) }}
+        </div>
+
+        <div class="kpi-note">
+          Gross order value
+        </div>
+      </div>
+
+      <div class="kpi">
+        <div class="kpi-label">
+          Avg. order value
+        </div>
+
+        <div class="kpi-value">
+          ${{ "%.2f"|format(report.summary.average_order_value) }}
+        </div>
+
+        <div class="kpi-note">
+          Average per order
+        </div>
+      </div>
+
+      <div class="kpi">
+        <div class="kpi-label">
+          Unique customers
+        </div>
+
+        <div class="kpi-value">
+          {{ report.summary.unique_customers }}
+        </div>
+
+        <div class="kpi-note">
+          Distinct customers
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2 class="section-title">
+      Product performance
+    </h2>
+
+    <div class="panel">
+      <table>
+        <thead>
+          <tr>
+            <th class="rank">
+              #
+            </th>
+
+            <th>
+              Product
+            </th>
+
+            <th class="number">
+              Orders
+            </th>
+
+            <th class="money">
+              Revenue
+            </th>
+
+            <th class="money">
+              Avg. order
+            </th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {% for product in report.top_products %}
+          <tr>
+            <td class="rank">
+              {{ loop.index }}
+            </td>
+
+            <td>
+              {{ product.product }}
+            </td>
+
+            <td class="number">
+              {{ product.order_count }}
+            </td>
+
+            <td class="money">
+              ${{ "%.2f"|format(product.revenue) }}
+            </td>
+
+            <td class="money">
+              ${{ "%.2f"|format(product.average_order_value) }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2 class="section-title">
+      Last 7 days
+    </h2>
+
+    <div class="panel">
+      <table>
+        <thead>
+          <tr>
+            <th>
+              Day
+            </th>
+
+            <th class="number">
+              Orders
+            </th>
+
+            <th class="money">
+              Revenue
+            </th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {% for day in report.orders_per_day %}
+          <tr>
+            <td>
+              {{ day.day }}
+            </td>
+
+            <td class="number">
+              {{ day.orders }}
+            </td>
+
+            <td class="money">
+              ${{ "%.2f"|format(day.revenue) }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="section page-break-before">
+    <h2 class="section-title">
+      Order details
+    </h2>
+
+    <p class="muted">
+      {{ report.summary.total_orders }}
+      orders included in this report.
+    </p>
+
+    <table class="orders-table">
+      <thead>
+        <tr>
+          <th>
+            ID
+          </th>
+
+          <th>
+            Customer
+          </th>
+
+          <th>
+            Product
+          </th>
+
+          <th class="money">
+            Amount
+          </th>
+
+          <th>
+            Created
+          </th>
+        </tr>
+      </thead>
+
+      <tbody>
+        {% for order in report.orders %}
+        <tr>
+          <td>
+            {{ order.id }}
+          </td>
+
+          <td>
+            {{ order.customer }}
+          </td>
+
+          <td>
+            {{ order.product }}
+          </td>
+
+          <td class="money">
+            ${{ "%.2f"|format(order.amount) }}
+          </td>
+
+          <td>
+            {{ order.created_at[:10] }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <div class="footer-note">
+    Generated automatically by FlyRank A8 PDF Report Generator
+  </div>
+</body>
+</html>
