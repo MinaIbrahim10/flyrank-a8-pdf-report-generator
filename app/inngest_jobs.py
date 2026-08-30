@@ -2,6 +2,8 @@ import logging
 
 import inngest
 
+from app.email_service import send_report_email
+
 from app.background_reports import (
     create_pending_report,
     load_report_data,
@@ -65,7 +67,16 @@ def generate_pdf_report(
             artifact,
         )
 
-        return result
+        email_result = ctx.step.run(
+            "email-report-link",
+            _send_report_ready_email,
+            report_id,
+        )
+
+        return {
+            **result,
+            "email": email_result,
+        }
 
     except Exception as error:
         mark_failed(
@@ -74,6 +85,27 @@ def generate_pdf_report(
         )
 
         raise
+
+
+
+def _send_report_ready_email(
+    report_id: str,
+) -> dict:
+    from app.report_service import get_report_record
+
+    report = get_report_record(
+        report_id
+    )
+
+    if report is None:
+        raise RuntimeError(
+            f"Report {report_id} not found"
+        )
+
+    return send_report_email(
+        report_id=report_id,
+        filename=report["filename"],
+    )
 
 
 def _create_weekly_report() -> dict:
@@ -127,10 +159,17 @@ def scheduled_monday_report(
             artifact,
         )
 
+        email_result = ctx.step.run(
+            "email-report-link",
+            _send_report_ready_email,
+            report_id,
+        )
+
         return {
             "schedule": "0 8 * * 1",
             "report_id": report_id,
             **result,
+            "email": email_result,
         }
 
     except Exception as error:

@@ -624,3 +624,53 @@ retry/recovery behavior after the application becomes reachable again.
 
 For local development, both the FastAPI application and Inngest Dev Server must
 be running.
+
+---
+
+# Stretch — Email Delivery with Mailpit
+
+Completed reports can be delivered by email through a local Mailpit SMTP server.
+
+The email contains a download link:
+
+```text
+http://127.0.0.1:8001/reports/{id}/file
+```
+
+The PDF itself is not attached.
+
+## Local Mailpit
+
+SMTP:
+
+```text
+127.0.0.1:1025
+```
+
+Mailpit web inbox:
+
+```text
+http://127.0.0.1:8025
+```
+
+The application supports these environment variables:
+
+```text
+SMTP_HOST
+SMTP_PORT
+REPORT_EMAIL_TO
+REPORT_EMAIL_FROM
+PUBLIC_BASE_URL
+```
+
+## Why send a link instead of attaching the PDF?
+
+Links avoid email attachment size limits and reduce duplicate storage because the
+same generated artifact does not need to be copied into every message.
+
+A link also allows the server to keep one canonical report artifact and makes it
+easier to add access control, expiration, auditing, or updated download behavior
+later.
+
+The Inngest workflow sends the email only after the PDF has been successfully
+generated and the report has been marked as complete.
