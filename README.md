@@ -674,3 +674,45 @@ later.
 
 The Inngest workflow sends the email only after the PDF has been successfully
 generated and the report has been marked as complete.
+
+---
+
+# Extra — 5,000 Row Benchmark
+
+The reporting pipeline was benchmarked with a temporary dataset of 5,000 orders.
+
+After the benchmark completed, the normal assignment dataset was automatically restored to exactly 200 rows.
+
+## Results
+
+```text
+Rows: 5000
+Seed: 0.037s
+Aggregation: 0.0120s
+PDF generation: 1.644s
+Total measured: 1.693s
+PDF size: 510.3 KB
+```
+
+## Observation
+
+The SQL aggregation layer remained very fast even with 5,000 rows.
+
+The largest part of the total runtime was PDF generation through Chromium, not the SQLite queries.
+
+This supports moving report generation to a background worker for larger reports or higher-concurrency production workloads.
+
+## Run the benchmark
+
+```bash
+python scripts/benchmark_5000.py
+```
+
+The script:
+
+1. temporarily seeds 5,000 orders
+2. measures seed time
+3. measures SQL aggregation time
+4. generates the full PDF
+5. measures PDF generation time and artifact size
+6. restores the original 200-row dataset
