@@ -475,3 +475,105 @@ The stretch implementation will add:
 - benchmark testing
 - automated tests
 - AI rematch comparison
+
+---
+
+# AI vs Me — Stage 7 Rematch
+
+For the final assignment stage, the same PDF reporting feature was rebuilt independently with AI and compared against the hand-built implementation.
+
+The original AI prompt is stored in:
+
+```text
+ai-version/PROMPT.md
+```
+
+The improved rematch prompt is stored in:
+
+```text
+ai-rematch/PROMPT.md
+```
+
+## What did the AI do better?
+
+The first AI version improved dependency reproducibility by pinning exact versions and using conventional pytest/httpx automated testing.
+
+The second AI rematch improved this further and passed four automated tests, while also documenting implementation decisions that were not explicitly specified.
+
+## What did my implementation do better?
+
+The hand-built version had much more complete assignment-oriented documentation from the beginning.
+
+It documented:
+
+- the full report pipeline
+- the four required SQL aggregations
+- API examples
+- POST-to-download behavior
+- synchronous generation tradeoffs
+- idempotency behavior
+- the real-world cost of missing idempotency
+- the generated PDF screenshot
+- artifact storage behavior
+
+The first AI version's README was significantly shorter and omitted several of those assignment checkpoints.
+
+## What did the AI get wrong or ignore?
+
+The first AI version did not follow some details that were never made explicit in the original prompt.
+
+For example, it chose a database named:
+
+```text
+shop.db
+```
+
+instead of:
+
+```text
+report.db
+```
+
+It also produced minimal documentation compared with the hand-built version.
+
+Those were not necessarily implementation failures; they exposed ambiguity in the first prompt.
+
+## What did I forget to specify?
+
+The first prompt did not specify:
+
+- the exact database filename
+- exact dependency version pinning
+- the required depth of README documentation
+- the amount of automated test coverage
+- that idempotency should be protected at the database layer
+- how unspecified implementation decisions should be reported
+
+The AI therefore made several of those decisions itself.
+
+## Rematch
+
+The second prompt explicitly added those missing constraints.
+
+The rematch then produced:
+
+- 4 passing tests
+- 0 failed tests
+- exactly 200 rows after repeated seeding
+- successful Python compilation
+- a real Chromium-generated A4 PDF
+- a 6-page report
+- database-level daily idempotency
+- explicit `report.db` usage
+- documented UTC behavior
+- reproducible seeded data
+- documented decisions that were not specified
+
+This demonstrated a clear improvement from prompt version 1 to prompt version 2.
+
+Detailed comparisons are available in:
+
+```text
+ai-version/COMPARISON.md
+ai-rematch/COMPARISON.md
+```

@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; color: #172033; font: 11px Arial, sans-serif; }
+    header { border-bottom: 3px solid #2563eb; margin-bottom: 18px; padding-bottom: 12px; }
+    h1 { font-size: 26px; margin: 0 0 5px; color: #0f172a; }
+    h2 { font-size: 16px; margin: 20px 0 8px; color: #1e3a8a; }
+    .muted { color: #64748b; }
+    .cards { display: flex; gap: 12px; }
+    .card { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 7px; flex: 1; padding: 12px; }
+    .card strong { display: block; font-size: 21px; margin-top: 4px; color: #1d4ed8; }
+    .summary { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    table { border-collapse: collapse; width: 100%; }
+    th { background: #1e3a8a; color: white; font-weight: 600; text-align: left; }
+    th, td { border-bottom: 1px solid #dbe3ef; padding: 6px 7px; }
+    tbody tr:nth-child(even) { background: #f8fafc; }
+    thead { display: table-header-group; }
+    tr { break-inside: avoid; page-break-inside: avoid; }
+    .number { text-align: right; }
+    .orders { font-size: 9.5px; }
+  </style>
+</head>
+<body>
+  <header><h1>Shop Order Report</h1><div class="muted">Generated {{ generated_at }}</div></header>
+  <div class="cards">
+    <div class="card">Total orders<strong>{{ total_order_count }}</strong></div>
+    <div class="card">Total revenue<strong>{{ total_revenue | money }}</strong></div>
+  </div>
+  <div class="summary">
+    <section><h2>Top 5 products by revenue</h2><table><thead><tr><th>Product</th><th class="number">Orders</th><th class="number">Revenue</th></tr></thead><tbody>
+      {% for row in top_products %}<tr><td>{{ row.product }}</td><td class="number">{{ row.order_count }}</td><td class="number">{{ row.revenue | money }}</td></tr>{% endfor %}
+    </tbody></table></section>
+    <section><h2>Last 7 days</h2><table><thead><tr><th>Date</th><th class="number">Orders</th><th class="number">Revenue</th></tr></thead><tbody>
+      {% for row in daily_summary %}<tr><td>{{ row.day }}</td><td class="number">{{ row.order_count }}</td><td class="number">{{ row.revenue | money }}</td></tr>{% endfor %}
+    </tbody></table></section>
+  </div>
+  <h2>Complete order list</h2>
+  <table class="orders"><thead><tr><th>ID</th><th>Customer</th><th>Product</th><th>Created (UTC)</th><th class="number">Amount</th></tr></thead><tbody>
+    {% for order in orders %}<tr><td>{{ order.id }}</td><td>{{ order.customer }}</td><td>{{ order.product }}</td><td>{{ order.created_at[:16].replace('T', ' ') }}</td><td class="number">{{ order.amount | money }}</td></tr>{% endfor %}
+  </tbody></table>
+</body>
+</html>
+
