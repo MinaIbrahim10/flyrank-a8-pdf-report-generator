@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 import inngest
 import inngest.fast_api
 
@@ -27,6 +29,12 @@ from app.report_service import (
 )
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    initialize_database()
+    yield
+
+
 app = FastAPI(
     title="PDF Report Generator",
     description=(
@@ -34,12 +42,8 @@ app = FastAPI(
         "SQL to PDF reporting pipeline"
     ),
     version="1.0.0",
+    lifespan=lifespan,
 )
-
-
-@app.on_event("startup")
-def startup() -> None:
-    initialize_database()
 
 
 @app.get("/health")
