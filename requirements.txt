@@ -3,3 +3,5 @@ uvicorn[standard]
 playwright
 jinja2
 inngest
+pytest
+httpx
